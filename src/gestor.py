@@ -1,29 +1,200 @@
-"""Gestor que guarda todas las listas internas del sistema (reemplaza a la base de datos)."""
+"""
+Archivo: src/gestor.py
+Proyecto: Software FJ - Sistema Integral de Gestión
+Responsable: Estudiante 2 (Sección de clientes)
 
-from src.logger import registrar_evento  # Para registrar la creación del gestor
+Administra las listas internas y las operaciones de clientes.
+"""
+
+from src.logger import registrar_evento, registrar_error
+from src.cliente import Cliente
+from src.excepciones import (
+    ClienteInvalidoError,
+    ParametroFaltanteError
+)
 
 
 class Gestor:
-    """Guarda las listas de clientes, servicios y reservas."""
+    """Guarda y administra las listas del sistema."""
 
     def __init__(self):
-        """Crea las tres listas vacías."""
-        self.clientes = []  # Lista donde se guardarán los clientes
-        self.servicios = []  # Lista donde se guardarán los servicios
-        self.reservas = []  # Lista donde se guardarán las reservas
-        registrar_evento("Gestor creado con listas vacías.")  # Deja constancia en el log
+        """Inicializa las listas de clientes, servicios y reservas."""
+
+        self.clientes = []
+        self.servicios = []
+        self.reservas = []
+
+        registrar_evento("Gestor creado con listas vacías.")
 
     # ==========================================================
-    # SECCIÓN CLIENTES – La implementa el Estudiante 2
-    # Métodos esperados: registrar_cliente, buscar_cliente, listar_clientes
+    # SECCIÓN CLIENTES - RESPONSABLE: ESTUDIANTE 2
     # ==========================================================
 
-    # ==========================================================
-    # SECCIÓN SERVICIOS – La implementa el Estudiante 3
-    # Métodos esperados: agregar_servicio, listar_servicios
-    # ==========================================================
+    def registrar_cliente(self, cliente):
+        """Valida y registra un nuevo cliente."""
+
+        try:
+            if cliente is None:
+                raise ParametroFaltanteError(
+                    "Debe proporcionar los datos del cliente."
+                )
+
+            if not isinstance(cliente, Cliente):
+                raise ClienteInvalidoError(
+                    "El objeto proporcionado no es un cliente válido."
+                )
+
+            cliente.validar()
+
+            if self.buscar_cliente(cliente.documento) is not None:
+                raise ClienteInvalidoError(
+                    "Ya existe un cliente con ese documento."
+                )
+
+            self.clientes.append(cliente)
+
+            registrar_evento(
+                f"Cliente registrado correctamente. "
+                f"ID: {cliente.id}, Documento: {cliente.documento}"
+            )
+
+            return cliente
+
+        except (ParametroFaltanteError, ClienteInvalidoError) as error:
+            registrar_error(f"Error al registrar cliente: {error}")
+            raise
+
+        except Exception as error:
+            registrar_error(
+                f"Error inesperado al registrar cliente: {error}"
+            )
+            raise ClienteInvalidoError(
+                "No fue posible registrar el cliente."
+            ) from error
+
+        finally:
+            registrar_evento(
+                "Finalizó el proceso de registro de cliente."
+            )
+
+    def buscar_cliente(self, documento):
+        """Busca un cliente por su número de documento."""
+
+        try:
+            if documento is None or not str(documento).strip():
+                raise ParametroFaltanteError(
+                    "Debe ingresar el documento del cliente."
+                )
+
+            documento = str(documento).strip()
+
+            for cliente in self.clientes:
+                if cliente.documento == documento:
+                    registrar_evento(
+                        f"Cliente encontrado. Documento: {documento}"
+                    )
+                    return cliente
+
+            registrar_evento(
+                f"No se encontró el cliente con documento: {documento}"
+            )
+
+            return None
+
+        except ParametroFaltanteError as error:
+            registrar_error(f"Error al buscar cliente: {error}")
+            raise
+
+        except Exception as error:
+            registrar_error(
+                f"Error inesperado al buscar cliente: {error}"
+            )
+            raise ClienteInvalidoError(
+                "No fue posible realizar la búsqueda del cliente."
+            ) from error
+
+        finally:
+            registrar_evento(
+                "Finalizó el proceso de búsqueda de cliente."
+            )
+
+    def listar_clientes(self):
+        """Devuelve una copia de los clientes registrados."""
+
+        try:
+            clientes_registrados = list(self.clientes)
+
+            registrar_evento(
+                f"Consulta de clientes realizada. "
+                f"Total: {len(clientes_registrados)}"
+            )
+
+            return clientes_registrados
+
+        except Exception as error:
+            registrar_error(f"Error al listar clientes: {error}")
+            raise ClienteInvalidoError(
+                "No fue posible consultar los clientes registrados."
+            ) from error
+
+        finally:
+            registrar_evento(
+                "Finalizó el proceso de consulta de clientes."
+            )
+
+    def eliminar_cliente(self, documento):
+        """Elimina un cliente utilizando su número de documento."""
+
+        try:
+            if documento is None or not str(documento).strip():
+                raise ParametroFaltanteError(
+                    "Debe proporcionar el documento del cliente."
+                )
+
+            documento = str(documento).strip()
+            cliente = self.buscar_cliente(documento)
+
+            if cliente is None:
+                raise ClienteInvalidoError(
+                    "No existe un cliente con ese documento."
+                )
+
+            self.clientes.remove(cliente)
+
+            registrar_evento(
+                f"Cliente eliminado. ID: {cliente.id}, "
+                f"Documento: {cliente.documento}"
+            )
+
+            return cliente
+
+        except (ParametroFaltanteError, ClienteInvalidoError) as error:
+            registrar_error(f"Error al eliminar cliente: {error}")
+            raise
+
+        except Exception as error:
+            registrar_error(
+                f"Error inesperado al eliminar cliente: {error}"
+            )
+            raise ClienteInvalidoError(
+                "No fue posible eliminar el cliente."
+            ) from error
+
+        finally:
+            registrar_evento(
+                "Finalizó el proceso de eliminación de cliente."
+            )
 
     # ==========================================================
-    # SECCIÓN RESERVAS – La implementa el Estudiante 4
-    # Métodos esperados: crear_reserva, listar_reservas
+    # SECCIÓN SERVICIOS - RESPONSABLE: ESTUDIANTE 3
     # ==========================================================
+    # El estudiante 3 implementará:
+    # agregar_servicio()
+    # listar_servicios()
+
+    # ==========================================================
+    # SECCIÓN RESERVAS - RESPONSABLE: ESTUDIANTE 4
+    # ==========================================================
+    # El estudiante 4 implementará:
+    # crear_reserva()
+    # listar_reservas()
