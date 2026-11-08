@@ -8,6 +8,8 @@ Administra las listas internas y las operaciones de clientes.
 
 from src.logger import registrar_evento, registrar_error
 from src.cliente import Cliente
+from src.servicios import Servicio
+from src.excepciones import ServicioInvalidoError
 from src.excepciones import (
     ClienteInvalidoError,
     ParametroFaltanteError
@@ -191,6 +193,36 @@ class Gestor:
     # El estudiante 3 implementará:
     # agregar_servicio()
     # listar_servicios()
+
+    def agregar_servicio(self, servicio):
+        """Valida y registra un nuevo servicio."""
+
+        if not isinstance(servicio, Servicio):
+            raise ServicioInvalidoError(
+                "El objeto proporcionado no es un servicio válido."
+            )
+
+        servicio.validar_parametros()
+        self.servicios.append(servicio)
+
+        registrar_evento(
+            f"Servicio registrado correctamente. ID: {servicio.id}"
+        )
+
+        return servicio
+
+    def listar_servicios(self):
+        """Devuelve una copia de los servicios registrados."""
+
+        servicios_registrados = list(self.servicios)
+
+        registrar_evento(
+            f"Consulta de servicios realizada. "
+            f"Total: {len(servicios_registrados)}"
+        )
+
+        return servicios_registrados
+
 
     # ==========================================================
     # SECCIÓN RESERVAS - RESPONSABLE: ESTUDIANTE 4
