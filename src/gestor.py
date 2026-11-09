@@ -9,6 +9,8 @@ Administra las listas internas y las operaciones de clientes.
 from src.logger import registrar_evento, registrar_error
 from src.cliente import Cliente
 from src.servicios import Servicio
+from src.reserva import Reserva
+from src.excepciones import ReservaInvalidaError
 from src.excepciones import ServicioInvalidoError
 from src.excepciones import (
     ClienteInvalidoError,
@@ -230,3 +232,91 @@ class Gestor:
     # El estudiante 4 implementará:
     # crear_reserva()
     # listar_reservas()
+
+    
+    def crear_reserva(self, reserva):
+        """Valida y registra una nueva reserva."""
+
+        try:
+            if reserva is None:
+                raise ParametroFaltanteError(
+                    "Debe proporcionar una reserva."
+                )
+
+            if not isinstance(reserva, Reserva):
+                raise ReservaInvalidaError(
+                    "El objeto proporcionado no es una reserva válida."
+                )
+
+            reserva.validar()
+
+            if any(
+                existente.id == reserva.id
+                for existente in self.reservas
+            ):
+                raise ReservaInvalidaError(
+                    "Ya existe una reserva con ese identificador."
+                )
+
+            if reserva.cliente not in self.clientes:
+                raise ReservaInvalidaError(
+                    "El cliente no está registrado en el sistema."
+                )
+
+            if reserva.servicio not in self.servicios:
+                raise ReservaInvalidaError(
+                    "El servicio no está registrado en el sistema."
+                )
+
+            self.reservas.append(reserva)
+
+            registrar_evento(
+                f"Reserva registrada correctamente. ID: {reserva.id}"
+            )
+
+            return reserva
+
+        except (ParametroFaltanteError, ReservaInvalidaError) as error:
+            registrar_error(
+                f"Error al crear reserva: {error}"
+            )
+            raise
+
+        except Exception as error:
+            registrar_error(
+                f"Error inesperado al crear reserva: {error}"
+            )
+            raise ReservaInvalidaError(
+                "No fue posible registrar la reserva."
+            ) from error
+
+        finally:
+            registrar_evento(
+                "Finalizó el proceso de creación de reserva."
+            )
+
+    def listar_reservas(self):
+        """Devuelve una copia de las reservas registradas."""
+
+        try:
+            reservas_registradas = list(self.reservas)
+
+            registrar_evento(
+                f"Consulta de reservas realizada. "
+                f"Total: {len(reservas_registradas)}"
+            )
+
+            return reservas_registradas
+
+        except Exception as error:
+            registrar_error(
+                f"Error al listar reservas: {error}"
+            )
+            raise ReservaInvalidaError(
+                "No fue posible consultar las reservas."
+            ) from error
+
+        finally:
+            registrar_evento(
+                "Finalizó el proceso de consulta de reservas."
+            )
