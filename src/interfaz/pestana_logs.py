@@ -43,6 +43,7 @@ def crear_pestana_logs(contenedor, gestor):
         texto_logs.insert(tk.END, leer_log())
         texto_logs.see(tk.END)
         texto_logs.config(state=tk.DISABLED)
+        texto_logs.update_idletasks()  # Redibuja el texto antes de cualquier ventana emergente
 
     def limpiar_vista():
         """Limpia únicamente el contenido visual."""
@@ -55,12 +56,16 @@ def crear_pestana_logs(contenedor, gestor):
         """Ejecuta la simulación y actualiza los registros."""
 
         try:
-            ejecutar_simulacion()
-            actualizar_logs()
+            resumen = ejecutar_simulacion()  # Ejecuta las 23 operaciones y recibe el conteo
+            actualizar_logs()  # Muestra el log actualizado
 
-            messagebox.showinfo(
+            messagebox.showinfo(  # Informa el resultado de la simulación
                 "Simulación finalizada",
-                "La simulación terminó. Consulta los resultados en los logs."
+                f"Operaciones: {resumen['total']}\n"
+                f"Correctas: {resumen['correctas']}\n"
+                f"Errores controlados: {resumen['errores']}\n"
+                f"Tipos de excepción: {len(resumen['tipos'])}\n\n"
+                "El detalle quedó en el registro de eventos."
             )
 
         except Exception as error:
