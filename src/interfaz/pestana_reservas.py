@@ -1,426 +1,245 @@
-# ==========================================================
-# Archivo: src/interfaz/pestana_reservas.py
-# ARCHIVO BASE PARA OTRO ESTUDIANTE – Responsable: Estudiante 4
-#
-# TODO: Combobox de cliente y servicio, campo de duración, botones Crear/Confirmar/Cancelar/Procesar, Treeview con estado y costo.
-#
-# IMPORTANTE: el nombre de la función crear_pestana_reservas y sus parámetros
-# (contenedor, gestor) NO se pueden cambiar, porque la ventana principal
-# la llama exactamente así.
-# ==========================================================
+"""
+Archivo: src/interfaz/pestana_reservas.py
+Proyecto: Software FJ - Sistema Integral de Gestión
+Responsable: Estudiante 4
 
-from tkinter import ttk  # Importa los widgets con estilo de Tkinter
-import tkinter as tk
-from tkinter import messagebox
+Interfaz gráfica para crear reservas (cliente + servicio + duración) y para
+confirmarlas, cancelarlas y procesarlas. Cada error se registra en
+logs/sistema.log y se muestra al usuario.
 
-from src.reserva import Reserva
-from src.excepciones import (
+IMPORTANTE: el nombre de la función crear_pestana_reservas y sus parámetros
+(contenedor, gestor) no se pueden cambiar, porque la ventana principal la
+llama exactamente así.
+"""
+
+import tkinter as tk  # Librería gráfica
+from tkinter import ttk, messagebox  # Widgets con estilo y ventanas emergentes
+
+from src.reserva import Reserva  # Clase Reserva
+from src.excepciones import (  # Excepciones personalizadas que puede mostrar esta pestaña
+    ReservaInvalidaError,  # Reserva inválida u operación no permitida
+    ParametroFaltanteError,  # Falta un dato obligatorio
+    ServicioNoDisponibleError,  # El servicio está bloqueado
+    CalculoInconsistenteError,  # Costo calculado inválido
+)
+from src.logger import registrar_evento, registrar_error  # Funciones para escribir en el log
+
+ERRORES_PREVISTOS = (  # Errores del modelo que se muestran con su propio mensaje
     ReservaInvalidaError,
     ParametroFaltanteError,
-    ServicioNoDisponibleError
+    ServicioNoDisponibleError,
+    CalculoInconsistenteError,
 )
 
+
 def crear_pestana_reservas(contenedor, gestor):
-    """Crea y retorna el marco de la pestaña Reservas. La completa el Estudiante 4."""
-    marco = ttk.Frame(contenedor, padding=20)  # Crea el marco de la pestaña con margen interno
-    
-    # Formulario para registrar reservas
-    formulario = ttk.LabelFrame(
-        marco,
-        text="Registrar reserva",
-        padding=15
-    )
-    formulario.pack(fill="x", pady=(0, 15))
+    """Crea y retorna el marco de la pestaña Reservas."""
+    marco = ttk.Frame(contenedor, padding=20)  # Marco de la pestaña con margen interno
 
-    ttk.Label(
-        formulario,
-        text="Cliente:"
-    ).grid(row=0, column=0, padx=5, pady=5, sticky="w")
+    def mostrar_error(titulo, mensaje):
+        """Registra el error en el log y lo muestra en una ventana."""
+        registrar_error(f"Pestaña Reservas - {titulo}: {mensaje}")  # Deja constancia en logs/sistema.log
+        marco.update_idletasks()  # Redibuja la tabla antes de abrir la ventana emergente
+        messagebox.showerror(titulo, mensaje)  # Muestra la ventana de error
 
-    combo_cliente = ttk.Combobox(
-        formulario,
-        state="readonly",
-        width=35
-    )
-    combo_cliente.grid(row=0, column=1, padx=5, pady=5)
+    def mostrar_exito(titulo, mensaje):
+        """Registra el evento en el log y muestra un mensaje de confirmación."""
+        registrar_evento(f"Pestaña Reservas - {titulo}: {mensaje}")  # Deja constancia en logs/sistema.log
+        marco.update_idletasks()  # Redibuja la tabla antes de abrir la ventana emergente
+        messagebox.showinfo(titulo, mensaje)  # Muestra la ventana de información
 
-    ttk.Label(
-        formulario,
-        text="Servicio:"
-    ).grid(row=1, column=0, padx=5, pady=5, sticky="w")
+    # ======================================================
+    # FORMULARIO PARA REGISTRAR RESERVAS
+    # ======================================================
 
-    combo_servicio = ttk.Combobox(
-        formulario,
-        state="readonly",
-        width=35
-    )
-    combo_servicio.grid(row=1, column=1, padx=5, pady=5)
+    formulario = ttk.LabelFrame(marco, text="Registrar reserva", padding=15)  # Recuadro del formulario
+    formulario.pack(fill="x", pady=(0, 15))  # Ocupa todo el ancho
 
-    ttk.Label(
-        formulario,
-        text="Duración (horas):"
-    ).grid(row=2, column=0, padx=5, pady=5, sticky="w")
+    ttk.Label(formulario, text="Cliente:").grid(row=0, column=0, padx=5, pady=5, sticky="w")  # Etiqueta cliente
+    combo_cliente = ttk.Combobox(formulario, state="readonly", width=40)  # Lista de clientes registrados
+    combo_cliente.grid(row=0, column=1, padx=5, pady=5)  # Ubica la lista
 
-    entrada_duracion = ttk.Entry(formulario, width=38)
-    entrada_duracion.grid(row=2, column=1, padx=5, pady=5)
+    ttk.Label(formulario, text="Servicio:").grid(row=1, column=0, padx=5, pady=5, sticky="w")  # Etiqueta servicio
+    combo_servicio = ttk.Combobox(formulario, state="readonly", width=40)  # Lista de servicios registrados
+    combo_servicio.grid(row=1, column=1, padx=5, pady=5)  # Ubica la lista
 
-    # Contenedor de botones para gestionar reservas
-    contenedor_botones = ttk.Frame(marco)
-    contenedor_botones.pack(fill="x", pady=(0, 15))
+    ttk.Label(formulario, text="Duración (horas):").grid(row=2, column=0, padx=5, pady=5, sticky="w")  # Etiqueta duración
+    entrada_duracion = ttk.Entry(formulario, width=43)  # Campo para la duración
+    entrada_duracion.grid(row=2, column=1, padx=5, pady=5)  # Ubica el campo
 
-    boton_crear = ttk.Button(
-        contenedor_botones,
-        text="Crear reserva"
-    )
-    boton_crear.pack(side="left", padx=5)
+    # ======================================================
+    # BOTONES DE ACCIONES
+    # ======================================================
 
-    boton_confirmar = ttk.Button(
-        contenedor_botones,
-        text="Confirmar"
-    )
-    boton_confirmar.pack(side="left", padx=5)
+    contenedor_botones = ttk.Frame(marco)  # Fila de botones
+    contenedor_botones.pack(fill="x", pady=(0, 15))  # Ocupa todo el ancho
 
-    boton_cancelar = ttk.Button(
-        contenedor_botones,
-        text="Cancelar"
-    )
-    boton_cancelar.pack(side="left", padx=5)
+    boton_crear = ttk.Button(contenedor_botones, text="Crear reserva")  # Botón crear
+    boton_crear.pack(side="left", padx=5)  # Ubica el botón
+    boton_confirmar = ttk.Button(contenedor_botones, text="Confirmar")  # Botón confirmar
+    boton_confirmar.pack(side="left", padx=5)  # Ubica el botón
+    boton_cancelar = ttk.Button(contenedor_botones, text="Cancelar")  # Botón cancelar
+    boton_cancelar.pack(side="left", padx=5)  # Ubica el botón
+    boton_procesar = ttk.Button(contenedor_botones, text="Procesar")  # Botón procesar
+    boton_procesar.pack(side="left", padx=5)  # Ubica el botón
 
-    boton_procesar = ttk.Button(
-        contenedor_botones,
-        text="Procesar"
-    )
-    boton_procesar.pack(side="left", padx=5)
+    # ======================================================
+    # TABLA DE RESERVAS REGISTRADAS
+    # ======================================================
 
-    # Tabla para mostrar las reservas registradas
-    contenedor_tabla = ttk.LabelFrame(
-        marco,
-        text="Reservas registradas",
-        padding=10
-    )
-    contenedor_tabla.pack(fill="both", expand=True, pady=10)
+    contenedor_tabla = ttk.LabelFrame(marco, text="Reservas registradas", padding=10)  # Recuadro de la tabla
+    contenedor_tabla.pack(fill="both", expand=True, pady=10)  # Ocupa el espacio restante
 
-    columnas = (
-        "id",
-        "cliente",
-        "servicio",
-        "duracion",
-        "estado",
-        "costo"
-    )
-
-    tabla_reservas = ttk.Treeview(
-        contenedor_tabla,
-        columns=columnas,
-        show="headings",
-        height=10
-    )
-
-    encabezados = {
+    encabezados = {  # Columnas de la tabla y su título
         "id": "ID",
         "cliente": "Cliente",
         "servicio": "Servicio",
         "duracion": "Duración (h)",
         "estado": "Estado",
-        "costo": "Costo"
+        "costo": "Costo",
     }
+    tabla_reservas = ttk.Treeview(  # Tabla de reservas
+        contenedor_tabla, columns=tuple(encabezados), show="headings", height=10  # 10 filas visibles
+    )
+    for columna, texto in encabezados.items():  # Configura cada columna
+        tabla_reservas.heading(columna, text=texto)  # Título de la columna
+        tabla_reservas.column(columna, width=120, anchor="center")  # Ancho y alineación
+    tabla_reservas.pack(fill="both", expand=True)  # Ubica la tabla
 
-    for columna, titulo in encabezados.items():
-        tabla_reservas.heading(columna, text=titulo)
-        tabla_reservas.column(columna, width=120, anchor="center")
+    # ======================================================
+    # CARGA DE CLIENTES Y SERVICIOS
+    # ======================================================
 
-    tabla_reservas.pack(fill="both", expand=True)
-
-    # Cargar clientes y servicios registrados
-    clientes_disponibles = []
-    servicios_disponibles = []
+    clientes_disponibles = []  # Clientes que aparecen en la lista desplegable
+    servicios_disponibles = []  # Servicios que aparecen en la lista desplegable
 
     def actualizar_opciones():
-        """Actualiza los clientes y servicios de los desplegables."""
+        """Actualiza los clientes y servicios de las listas desplegables."""
+        clientes_disponibles.clear()  # Vacía la lista anterior
+        clientes_disponibles.extend(gestor.listar_clientes())  # Carga los clientes del gestor
+        servicios_disponibles.clear()  # Vacía la lista anterior
+        servicios_disponibles.extend(gestor.listar_servicios())  # Carga los servicios del gestor
 
-        clientes_disponibles.clear()
-        clientes_disponibles.extend(gestor.listar_clientes())
-
-        servicios_disponibles.clear()
-        servicios_disponibles.extend(gestor.listar_servicios())
-
-        combo_cliente["values"] = [
-            f"{cliente.nombre} - {cliente.documento}"
-            for cliente in clientes_disponibles
+        combo_cliente["values"] = [  # Texto de cada cliente en la lista
+            f"{cliente.nombre} - {cliente.documento}" for cliente in clientes_disponibles
         ]
-
-        combo_servicio["values"] = [
+        combo_servicio["values"] = [  # Texto de cada servicio; avisa si no está disponible
             f"{servicio.nombre} - ${servicio.precio_base:,.0f}"
+            + ("" if servicio.disponible else " (no disponible)")
             for servicio in servicios_disponibles
         ]
+        combo_cliente.set("")  # Limpia la selección de cliente
+        combo_servicio.set("")  # Limpia la selección de servicio
 
-        combo_cliente.set("")
-        combo_servicio.set("")
+    ttk.Button(  # Botón para recargar las listas
+        formulario, text="Actualizar clientes y servicios", command=actualizar_opciones
+    ).grid(row=3, column=0, columnspan=2, pady=10)  # Ubica el botón bajo el formulario
 
-    boton_actualizar = ttk.Button(
-        formulario,
-        text="Actualizar clientes y servicios",
-        command=actualizar_opciones
-    )
-    boton_actualizar.grid(
-        row=3,
-        column=0,
-        columnspan=2,
-        pady=10
-    )
+    actualizar_opciones()  # Carga inicial de las listas
 
-    actualizar_opciones()
+    def obtener_reserva_seleccionada(accion):
+        """Retorna la reserva seleccionada en la tabla, o None si no hay selección."""
+        seleccion = tabla_reservas.selection()  # Filas seleccionadas
+        if not seleccion:  # No hay ninguna fila seleccionada
+            registrar_error(f"Pestaña Reservas - {accion}: no se seleccionó ninguna reserva.")  # Queda en el log
+            messagebox.showwarning("Seleccionar reserva", "Debe seleccionar una reserva de la tabla.")  # Aviso
+            return None  # No hay reserva
+        id_reserva = seleccion[0]  # El iid de la fila es el ID de la reserva
+        reserva = next(  # Busca la reserva en el gestor
+            (reserva for reserva in gestor.listar_reservas() if reserva.id == id_reserva), None
+        )
+        if reserva is None:  # La fila no corresponde a una reserva registrada
+            raise ReservaInvalidaError("No se encontró la reserva seleccionada.")  # Reserva inválida
+        return reserva  # Devuelve la reserva encontrada
 
-    # Crear una reserva desde el formulario
+    # ======================================================
+    # ACCIONES
+    # ======================================================
+
     def crear_reserva():
         """Registra una nueva reserva con los datos seleccionados."""
+        try:  # Intenta crear la reserva
+            indice_cliente = combo_cliente.current()  # Posición del cliente elegido (-1 si ninguno)
+            indice_servicio = combo_servicio.current()  # Posición del servicio elegido (-1 si ninguno)
+            if indice_cliente < 0:  # No se eligió cliente
+                raise ParametroFaltanteError("Debe seleccionar un cliente.")  # Falta el dato
+            if indice_servicio < 0:  # No se eligió servicio
+                raise ParametroFaltanteError("Debe seleccionar un servicio.")  # Falta el dato
 
-        try:
-            indice_cliente = combo_cliente.current()
-            indice_servicio = combo_servicio.current()
+            texto_duracion = entrada_duracion.get().strip()  # Lee la duración
+            try:  # Intenta convertir la duración a número
+                duracion = float(texto_duracion)  # Duración como decimal
+            except ValueError as error:  # El texto no es un número
+                raise ReservaInvalidaError("La duración debe ser un número válido.") from error  # Encadenamiento
 
-            if indice_cliente < 0:
-                raise ParametroFaltanteError(
-                    "Debe seleccionar un cliente."
-                )
+            cliente = clientes_disponibles[indice_cliente]  # Cliente elegido
+            servicio = servicios_disponibles[indice_servicio]  # Servicio elegido
+            id_reserva = f"R{len(gestor.reservas) + 1:03d}"  # Genera el ID consecutivo (R001, R002...)
 
-            if indice_servicio < 0:
-                raise ParametroFaltanteError(
-                    "Debe seleccionar un servicio."
-                )
+            reserva = Reserva(id_reserva, cliente, servicio, duracion)  # Crea la reserva (valida sus datos)
+            gestor.crear_reserva(reserva)  # La registra (revisa duplicados y disponibilidad)
 
-            duracion = float(entrada_duracion.get().strip())
-
-            cliente = clientes_disponibles[indice_cliente]
-            servicio = servicios_disponibles[indice_servicio]
-
-            id_reserva = f"R{len(gestor.reservas) + 1:03d}"
-
-            reserva = Reserva(
-                id_reserva,
-                cliente,
-                servicio,
-                duracion
+        except ERRORES_PREVISTOS as error:  # Errores del modelo
+            mostrar_error("Error al crear reserva", str(error))  # Error al log y pantalla
+        except Exception as error:  # Cualquier error no previsto
+            mostrar_error("Error inesperado", f"No fue posible crear la reserva. Detalle: {error}")  # Error al log
+        else:  # Solo si no hubo errores
+            tabla_reservas.insert(  # Agrega la fila a la tabla
+                "", "end", iid=reserva.id,  # Usa el ID como identificador de la fila
+                values=(reserva.id, cliente.nombre, servicio.nombre, f"{reserva.duracion:g}",
+                        reserva.estado, f"${reserva.costo:,.2f}"),  # Datos visibles
             )
+            entrada_duracion.delete(0, tk.END)  # Limpia el campo de duración
+            mostrar_exito("Reserva creada", f"La reserva {reserva.id} se registró correctamente.")  # Evento
 
-            gestor.crear_reserva(reserva)
-
-            tabla_reservas.insert(
-                "",
-                "end",
-                iid=reserva.id,
-                values=(
-                    reserva.id,
-                    cliente.nombre,
-                    servicio.nombre,
-                    reserva.duracion,
-                    reserva.estado,
-                    f"${reserva.costo:,.2f}"
-                )
-            )
-
-            entrada_duracion.delete(0, tk.END)
-
-            messagebox.showinfo(
-                "Reserva creada",
-                "La reserva se registró correctamente."
-            )
-
-        except ValueError:
-            messagebox.showerror(
-                "Error",
-                "La duración debe ser un número válido."
-            )
-
-        except (
-            ReservaInvalidaError,
-            ParametroFaltanteError,
-            ServicioNoDisponibleError
-        ) as error:
-            messagebox.showerror("Error", str(error))
-
-        except Exception as error:
-            messagebox.showerror(
-                "Error inesperado",
-                str(error)
-            )
-
-    boton_crear.config(command=crear_reserva)
-
-    # Confirmar una reserva seleccionada
     def confirmar_reserva():
         """Confirma la reserva seleccionada en la tabla."""
+        try:  # Intenta confirmar
+            reserva = obtener_reserva_seleccionada("Confirmar")  # Reserva elegida
+            if reserva is None:  # No había selección
+                return  # Detiene la operación
+            reserva.confirmar()  # Cambia el estado a confirmada (try/except/else en el modelo)
+        except ERRORES_PREVISTOS as error:  # Errores del modelo
+            mostrar_error("Error al confirmar reserva", str(error))  # Error al log y pantalla
+        except Exception as error:  # Cualquier error no previsto
+            mostrar_error("Error inesperado", f"No fue posible confirmar la reserva. Detalle: {error}")  # Error al log
+        else:  # Solo si no hubo errores
+            tabla_reservas.set(reserva.id, "estado", reserva.estado)  # Actualiza la columna Estado
+            mostrar_exito("Reserva confirmada", f"La reserva {reserva.id} se confirmó correctamente.")  # Evento
 
-        seleccion = tabla_reservas.selection()
-
-        if not seleccion:
-            messagebox.showwarning(
-                "Seleccionar reserva",
-                "Debe seleccionar una reserva de la tabla."
-            )
-            return
-
-        try:
-            id_reserva = seleccion[0]
-
-            reserva = next(
-                (
-                    reserva
-                    for reserva in gestor.listar_reservas()
-                    if reserva.id == id_reserva
-                ),
-                None
-            )
-
-            if reserva is None:
-                raise ReservaInvalidaError(
-                    "No se encontró la reserva seleccionada."
-                )
-
-            reserva.confirmar()
-
-            tabla_reservas.set(
-                id_reserva,
-                "estado",
-                reserva.estado
-            )
-
-            messagebox.showinfo(
-                "Reserva confirmada",
-                "La reserva se confirmó correctamente."
-            )
-
-        except (
-            ReservaInvalidaError,
-            ParametroFaltanteError,
-            ServicioNoDisponibleError
-        ) as error:
-            messagebox.showerror("Error", str(error))
-
-        except Exception as error:
-            messagebox.showerror(
-                "Error inesperado",
-                str(error)
-            )
-
-    boton_confirmar.config(command=confirmar_reserva)
-
-    # Cancelar una reserva seleccionada
     def cancelar_reserva():
         """Cancela la reserva seleccionada en la tabla."""
+        try:  # Intenta cancelar
+            reserva = obtener_reserva_seleccionada("Cancelar")  # Reserva elegida
+            if reserva is None:  # No había selección
+                return  # Detiene la operación
+            reserva.cancelar()  # Cambia el estado a cancelada (try/except/finally en el modelo)
+        except ERRORES_PREVISTOS as error:  # Errores del modelo
+            mostrar_error("Error al cancelar reserva", str(error))  # Error al log y pantalla
+        except Exception as error:  # Cualquier error no previsto
+            mostrar_error("Error inesperado", f"No fue posible cancelar la reserva. Detalle: {error}")  # Error al log
+        else:  # Solo si no hubo errores
+            tabla_reservas.set(reserva.id, "estado", reserva.estado)  # Actualiza la columna Estado
+            mostrar_exito("Reserva cancelada", f"La reserva {reserva.id} se canceló correctamente.")  # Evento
 
-        seleccion = tabla_reservas.selection()
-
-        if not seleccion:
-            messagebox.showwarning(
-                "Seleccionar reserva",
-                "Debe seleccionar una reserva de la tabla."
-            )
-            return
-
-        try:
-            id_reserva = seleccion[0]
-
-            reserva = next(
-                (
-                    reserva
-                    for reserva in gestor.listar_reservas()
-                    if reserva.id == id_reserva
-                ),
-                None
-            )
-
-            if reserva is None:
-                raise ReservaInvalidaError(
-                    "No se encontró la reserva seleccionada."
-                )
-
-            reserva.cancelar()
-
-            tabla_reservas.set(
-                id_reserva,
-                "estado",
-                reserva.estado
-            )
-
-            messagebox.showinfo(
-                "Reserva cancelada",
-                "La reserva se canceló correctamente."
-            )
-
-        except (
-            ReservaInvalidaError,
-            ParametroFaltanteError,
-            ServicioNoDisponibleError
-        ) as error:
-            messagebox.showerror("Error", str(error))
-
-        except Exception as error:
-            messagebox.showerror(
-                "Error inesperado",
-                str(error)
-            )
-
-    boton_cancelar.config(command=cancelar_reserva)
-
-    # Procesar una reserva seleccionada
     def procesar_reserva():
         """Calcula el costo de la reserva seleccionada."""
+        try:  # Intenta procesar
+            reserva = obtener_reserva_seleccionada("Procesar")  # Reserva elegida
+            if reserva is None:  # No había selección
+                return  # Detiene la operación
+            costo = reserva.procesar()  # Calcula el costo (raise ... from en el modelo)
+        except ERRORES_PREVISTOS as error:  # Errores del modelo
+            mostrar_error("Error al procesar reserva", str(error))  # Error al log y pantalla
+        except Exception as error:  # Cualquier error no previsto
+            mostrar_error("Error inesperado", f"No fue posible procesar la reserva. Detalle: {error}")  # Error al log
+        else:  # Solo si no hubo errores
+            tabla_reservas.set(reserva.id, "costo", f"${costo:,.2f}")  # Actualiza la columna Costo
+            mostrar_exito("Reserva procesada", f"El costo de la reserva {reserva.id} es ${costo:,.2f}")  # Evento
 
-        seleccion = tabla_reservas.selection()
+    boton_crear.config(command=crear_reserva)  # Conecta el botón Crear
+    boton_confirmar.config(command=confirmar_reserva)  # Conecta el botón Confirmar
+    boton_cancelar.config(command=cancelar_reserva)  # Conecta el botón Cancelar
+    boton_procesar.config(command=procesar_reserva)  # Conecta el botón Procesar
 
-        if not seleccion:
-            messagebox.showwarning(
-                "Seleccionar reserva",
-                "Debe seleccionar una reserva de la tabla."
-            )
-            return
-
-        try:
-            id_reserva = seleccion[0]
-
-            reserva = next(
-                (
-                    reserva
-                    for reserva in gestor.listar_reservas()
-                    if reserva.id == id_reserva
-                ),
-                None
-            )
-
-            if reserva is None:
-                raise ReservaInvalidaError(
-                    "No se encontró la reserva seleccionada."
-                )
-
-            costo = reserva.procesar()
-
-            tabla_reservas.set(
-                id_reserva,
-                "costo",
-                f"${costo:,.2f}"
-            )
-
-            messagebox.showinfo(
-                "Reserva procesada",
-                f"El costo de la reserva es ${costo:,.2f}"
-            )
-
-        except (
-            ReservaInvalidaError,
-            ParametroFaltanteError,
-            ServicioNoDisponibleError
-        ) as error:
-            messagebox.showerror("Error", str(error))
-
-        except Exception as error:
-            messagebox.showerror(
-                "Error inesperado",
-                str(error)
-            )
-
-    boton_procesar.config(command=procesar_reserva)
-
-    etiqueta = ttk.Label(marco, text="Pestaña Reservas – en construcción (Estudiante 4)")  # Texto temporal
-    etiqueta.pack(pady=20)  # Ubica la etiqueta en el marco con espacio vertical
     return marco  # Retorna el marco para agregarlo al cuaderno de pestañas

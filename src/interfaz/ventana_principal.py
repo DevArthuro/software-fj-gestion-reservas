@@ -14,7 +14,8 @@ def iniciar_aplicacion(gestor):
     """Crea la ventana con sus 4 pestañas y la deja abierta hasta que se cierre."""
     ventana = tk.Tk()  # Crea la ventana principal
     ventana.title("Software FJ - Sistema de Gestión de Clientes, Servicios y Reservas")  # Título de la ventana
-    ventana.geometry("900x600")  # Tamaño de la ventana
+    ventana.geometry("1000x760")  # Tamaño inicial: muestra completas las tablas de cada pestaña
+    ventana.minsize(960, 720)  # Tamaño mínimo para que la tabla de Servicios no quede cortada
 
     titulo = ttk.Label(ventana, text="Software FJ", font=("Arial", 16, "bold"))  # Título visible arriba
     titulo.pack(pady=10)  # Lo ubica con espacio vertical
